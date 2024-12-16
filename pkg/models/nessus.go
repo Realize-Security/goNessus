@@ -1,125 +1,8 @@
-package main
+package models
 
-import (
-	"encoding/xml"
-	"fmt"
-	"os"
-	"strings"
-)
+import "strings"
 
-func main() {
-	var nessusFile = "Report.nessus"
-	fb, err := readFile(nessusFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error encountered: %v\n", err)
-		os.Exit(1)
-	}
-
-	report, err := parseNessusReport(fb)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error encountered: %v\n", err)
-		os.Exit(1)
-	}
-
-	processReport(report)
-}
-
-func processReport(report *NessusClientData_v2) {
-	fmt.Printf("Report Name: %s\n", report.Report.Name)
-
-	for _, host := range report.Report.ReportHost {
-		fmt.Printf("\nHost: %s\n", host.Name)
-
-		for _, tag := range host.HostProperties.Tags {
-			if tag.Name == "operating-system" || tag.Name == "host-ip" {
-				fmt.Printf("  %s: %s\n", tag.Name, tag.Value)
-			}
-		}
-
-		processFindingsForHost(host)
-	}
-}
-
-func processFindingsForHost(host ReportHost) {
-	var criticalCount, highCount, mediumCount, lowCount int
-
-	for _, item := range host.ReportItems {
-		version, score, vector := item.GetCVSS()
-
-		switch item.Severity {
-		case 4:
-			criticalCount++
-		case 3:
-			highCount++
-		case 2:
-			mediumCount++
-		case 1:
-			lowCount++
-		}
-
-		if item.Severity >= 1 {
-			fmt.Printf("\n  Finding: %s\n", item.PluginName)
-			fmt.Printf("    Severity: %d\n", item.Severity)
-			if version != "" {
-				fmt.Printf("    CVSS %s: %.1f (%s)\n", version, score, vector)
-			}
-			if item.CVE != "" {
-				fmt.Printf("    CVE: %s\n", item.CVE)
-			}
-		}
-	}
-
-	fmt.Printf("\n  Summary for %s:\n", host.Name)
-	fmt.Printf("    Critical: %d\n", criticalCount)
-	fmt.Printf("    High: %d\n", highCount)
-	fmt.Printf("    Medium: %d\n", mediumCount)
-	fmt.Printf("    Low: %d\n", lowCount)
-}
-
-func readFile(filename string) ([]byte, error) {
-	fileData, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("error encountered opening %s: %w", filename, err)
-	}
-	return fileData, nil
-}
-
-func parseNessusReport(xmlData []byte) (*NessusClientData_v2, error) {
-	var report NessusClientData_v2
-	err := xml.Unmarshal(xmlData, &report)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing Nessus report: %w", err)
-	}
-	return &report, nil
-}
-
-func (r *ReportItem) GetSeverityText() string {
-	switch r.Severity {
-	case 4:
-		return "Critical"
-	case 3:
-		return "High"
-	case 2:
-		return "Medium"
-	case 1:
-		return "Low"
-	default:
-		return "Info"
-	}
-}
-
-func (r *ReportItem) HasCVE() bool {
-	return r.CVE != ""
-}
-
-func (r *ReportItem) GetCVEs() []string {
-	if r.CVE == "" {
-		return nil
-	}
-	return strings.Split(r.CVE, ",")
-}
-
-type NessusClientData_v2 struct {
+type NessusReport struct {
 	Report Report `xml:"Report"`
 }
 
@@ -155,6 +38,7 @@ type CVSSv2 struct {
 	Source    string  `xml:"cvss_score_source,omitempty"`
 }
 
+// Implement CVSSScore interface for CVSSv2
 func (c CVSSv2) GetVersion() string { return "2.0" }
 func (c CVSSv2) GetScore() float64  { return c.BaseScore }
 func (c CVSSv2) GetVector() string  { return c.Vector }
@@ -164,6 +48,7 @@ type CVSSv3 struct {
 	Vector    string  `xml:"cvss3_vector,omitempty"`
 }
 
+// Implement CVSSScore interface for CVSSv3
 func (c CVSSv3) GetVersion() string { return "3.0" }
 func (c CVSSv3) GetScore() float64  { return c.BaseScore }
 func (c CVSSv3) GetVector() string  { return c.Vector }
@@ -200,6 +85,32 @@ type ReportItem struct {
 	CVSSv3 `xml:",any"`
 }
 
+func (r *ReportItem) GetSeverityText() string {
+	switch r.Severity {
+	case 4:
+		return "Critical"
+	case 3:
+		return "High"
+	case 2:
+		return "Medium"
+	case 1:
+		return "Low"
+	default:
+		return "Info"
+	}
+}
+
+func (r *ReportItem) HasCVE() bool {
+	return r.CVE != ""
+}
+
+func (r *ReportItem) GetCVEs() []string {
+	if r.CVE == "" {
+		return nil
+	}
+	return strings.Split(r.CVE, ",")
+}
+
 func (r *ReportItem) GetCVSS() (version string, score float64, vector string) {
 	if r.CVSSv3.BaseScore > 0 {
 		return "3.0", r.CVSSv3.BaseScore, r.CVSSv3.Vector
@@ -208,7 +119,6 @@ func (r *ReportItem) GetCVSS() (version string, score float64, vector string) {
 	if r.CVSSv2.BaseScore > 0 {
 		return "2.0", r.CVSSv2.BaseScore, r.CVSSv2.Vector
 	}
-
 	return "", 0, ""
 }
 
@@ -221,6 +131,5 @@ func (r *ReportItem) GetAllCVSS() []CVSSScore {
 	if r.CVSSv3.BaseScore > 0 {
 		scores = append(scores, r.CVSSv3)
 	}
-
 	return scores
 }

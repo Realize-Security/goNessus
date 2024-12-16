@@ -27,3 +27,4 @@ go.work.sum
 #  Don't upload nessus data
 **/*.nessus
 **/*.xml
+**/*.txt
