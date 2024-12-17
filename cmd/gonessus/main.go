@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"github.com/Realize-Security/goNessus/internal/files"
 	nessusreport "github.com/Realize-Security/goNessus/internal/report/nessus"
+	"github.com/Realize-Security/goNessus/internal/search"
+	"github.com/Realize-Security/goNessus/pkg/models"
 	"github.com/alecthomas/kong"
+	"log"
 	"os"
+	"slices"
 )
 
 type CLI struct {
-	NessusFile string `name:"nessus" help:".nessus XML Report" required:"" type:"path"`
-	Filter     string `name:"filter" help:"Filter issues by string. Not case sensitive" type:"string"`
-	CsvOnly    bool   `name:"csv-only" help:"Output .nessus direct to CSV."`
+	NessusFile string   `name:"nessus" help:".nessus XML NessusReport" required:"" type:"path"`
+	Patterns   []string `name:"pattern" help:"Search patterns in format 'expression::title::type::options'. Multiple patterns allowed." type:"strings"`
+	CsvOnly    bool     `name:"csv-only" help:"Output .nessus direct to CSV."`
 }
 
 func (c *CLI) Validate(ctx *kong.Context) error {
@@ -25,24 +29,53 @@ func main() {
 	var cli CLI
 	_ = kong.Parse(&cli)
 
+	pat := search.NewPatternRepository()
+
+	patterns := make([]*models.Pattern, 0)
+	for _, rawPattern := range cli.Patterns {
+		pattern, err := pat.ParsePattern(rawPattern)
+		if err != nil {
+			log.Fatalf("Invalid pattern %q: %v", rawPattern, err)
+		}
+		patterns = append(patterns, pattern)
+	}
+
 	fb, err := files.ReadFileToBytes(cli.NessusFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error encountered:", err)
 		os.Exit(1)
 	}
 
-	report, err := nessusreport.ParseNessusReport(fb)
+	nessus := nessusreport.NewNessusRepository()
+
+	report, err := nessus.Parse(fb)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error encountered:", err)
 		os.Exit(1)
 	}
 
 	if cli.CsvOnly {
-		if err := nessusreport.NessusXMLDirectToCSV(report); err != nil {
+		if err := nessus.ToCSV(report); err != nil {
 			fmt.Fprintln(os.Stderr, "error processing report:", err)
 			os.Exit(1)
 		}
 		return
 	}
 
+	fr := models.FinalReport{
+		Issues: make(map[string]models.Issue),
+	}
+
+	for _, host := range report.Report.ReportHost {
+		for _, ri := range host.ReportItems {
+			f := fr.Issues[ri.PluginName]
+			if !slices.Contains(f.AffectedHosts, host.Name) {
+				f.AffectedHosts = append(f.AffectedHosts, host.Name)
+			}
+			fr.Issues[ri.PluginName] = f
+		}
+	}
+	for _, iss := range fr.Issues {
+		fmt.Println(iss.AffectedHosts)
+	}
 }

@@ -10,14 +10,26 @@ import (
 	"strings"
 )
 
-// NessusXMLDirectToCSV converts Nessus' XML format directly to CSV output.
-func NessusXMLDirectToCSV(report *models.NessusReport) error {
+type NessusReportRepository interface {
+	Parse(data []byte) (*models.NessusReport, error)
+	ToCSV(report *models.NessusReport) error
+}
+
+type nessusRepository struct{}
+
+// NewNessusRepository creates a new instance of NessusReportRepository
+func NewNessusRepository() NessusReportRepository {
+	return &nessusRepository{}
+}
+
+// XMLDirectToCSV converts Nessus' XML format directly to CSV output.
+func (r *nessusRepository) ToCSV(report *models.NessusReport) error {
 	w := csv.NewWriter(os.Stdout)
 	headers := []string{
 		"Host",
 		"Operating System",
 		"Host IP",
-		"Finding Name",
+		"Finding HostName",
 		"Severity",
 		"Severity Text",
 		"Port",
@@ -37,11 +49,11 @@ func NessusXMLDirectToCSV(report *models.NessusReport) error {
 	}
 
 	for _, host := range report.Report.ReportHost {
-		var os, ip string
+		var operatingsystem, ip string
 		for _, tag := range host.HostProperties.Tags {
 			switch tag.Name {
 			case "operating-system":
-				os = tag.Value
+				operatingsystem = tag.Value
 			case "host-ip":
 				ip = tag.Value
 			}
@@ -57,7 +69,7 @@ func NessusXMLDirectToCSV(report *models.NessusReport) error {
 
 			record := []string{
 				host.Name,
-				os,
+				operatingsystem,
 				ip,
 				item.PluginName,
 				strconv.Itoa(item.Severity),
@@ -88,8 +100,8 @@ func NessusXMLDirectToCSV(report *models.NessusReport) error {
 	return nil
 }
 
-// ParseNessusReport takes []byte format of a .nessus file and serializes to NessusReport.
-func ParseNessusReport(xmlData []byte) (*models.NessusReport, error) {
+// Parse takes []byte format of a .nessus file and serializes to NessusReport.
+func (r *nessusRepository) Parse(xmlData []byte) (*models.NessusReport, error) {
 	var report models.NessusReport
 	err := xml.Unmarshal(xmlData, &report)
 	if err != nil {
