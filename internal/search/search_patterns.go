@@ -33,11 +33,11 @@ func (p *patternRepository) ParsePattern(raw string) (*models.Pattern, error) {
 	// Parse the different parts
 	for i, part := range parts {
 		switch i {
-		case 0: // Expression already handled
+		case 0:
 			continue
-		case 1: // Title
+		case 1:
 			pattern.Title = part
-		case 2: // Pattern type
+		case 2:
 			switch strings.ToLower(part) {
 			case "regex", "re":
 				pattern.Type = models.RegexMatch

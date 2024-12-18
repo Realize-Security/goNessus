@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/xml"
 	"fmt"
+	"github.com/Realize-Security/goNessus/internal/search"
 	"github.com/Realize-Security/goNessus/pkg/models"
 	"os"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 type NessusReportRepository interface {
 	Parse(data []byte) (*models.NessusReport, error)
 	ToCSV(report *models.NessusReport) error
+	IssuesByPluginName(report *models.NessusReport, patterns []*models.Pattern, matcher search.PatternParsingRepository) *models.FinalReport
 }
 
 type nessusRepository struct{}
@@ -22,7 +24,7 @@ func NewNessusRepository() NessusReportRepository {
 	return &nessusRepository{}
 }
 
-// XMLDirectToCSV converts Nessus' XML format directly to CSV output.
+// ToCSV converts Nessus' XML format directly to CSV output.
 func (r *nessusRepository) ToCSV(report *models.NessusReport) error {
 	w := csv.NewWriter(os.Stdout)
 	headers := []string{
@@ -108,4 +110,94 @@ func (r *nessusRepository) Parse(xmlData []byte) (*models.NessusReport, error) {
 		return nil, fmt.Errorf("error parsing Nessus report: %w", err)
 	}
 	return &report, nil
+}
+
+// IssuesByPluginName groups issues by Nessus plugin name
+func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patterns []*models.Pattern, matcher search.PatternParsingRepository) *models.FinalReport {
+	issueMap := make(map[string]*models.Issue)
+	pluginToHost := make(map[string]map[string]bool)
+	hc := len(report.Report.ReportHost)
+
+	for _, host := range report.Report.ReportHost {
+		for _, reportItem := range host.ReportItems {
+
+			// Filter in target issues only
+			matchTitle, res := matchesFilter(reportItem.PluginName, patterns, matcher)
+			if !res {
+				continue
+			}
+			issue, exists := issueMap[reportItem.PluginName]
+			if !exists {
+				issue = &models.Issue{
+					FilterMatch:   matchTitle,
+					Title:         reportItem.PluginName,
+					AffectedHosts: make([]models.AffectedHost, 0, hc),
+				}
+				issueMap[reportItem.PluginName] = issue
+				pluginToHost[reportItem.PluginName] = make(map[string]bool)
+			}
+
+			if !hostFound(pluginToHost, host.Name, reportItem.PluginName) {
+				// Add new host with its first service
+				issue.AffectedHosts = append(issue.AffectedHosts, models.AffectedHost{
+					Hostname: host.Name,
+					Services: []models.AffectedService{{
+						Port:     reportItem.Port,
+						Protocol: reportItem.Protocol,
+						Service:  reportItem.ServiceName,
+					}},
+				})
+				pluginToHost[reportItem.PluginName][host.Name] = true
+			} else {
+				// Find the correct host and append the service
+				for i := range issue.AffectedHosts {
+					if issue.AffectedHosts[i].Hostname == host.Name {
+						issue.AffectedHosts[i].Services = append(issue.AffectedHosts[i].Services, models.AffectedService{
+							Port:     reportItem.Port,
+							Protocol: reportItem.Protocol,
+							Service:  reportItem.ServiceName,
+						})
+						break
+					}
+				}
+			}
+		}
+	}
+
+	fr := &models.FinalReport{
+		Issues: make([]models.Issue, 0, len(issueMap)),
+	}
+	for _, issue := range issueMap {
+		fr.Issues = append(fr.Issues, *issue)
+	}
+	return fr
+}
+
+func hostFound(tracked map[string]map[string]bool, hostname, plugin string) (hostFound bool) {
+	if tracked[plugin][hostname] {
+		return true
+	}
+	return
+}
+
+func totalPlugins(reportHost []models.ReportHost) int {
+	tracked := make(map[string]bool)
+	for _, host := range reportHost {
+		for _, reportItem := range host.ReportItems {
+			if !tracked[reportItem.PluginName] {
+				tracked[reportItem.PluginName] = true
+				continue
+			}
+		}
+	}
+	return len(tracked)
+}
+
+func matchesFilter(plugin string, patterns []*models.Pattern, matcher search.PatternParsingRepository) (string, bool) {
+	for _, pattern := range patterns {
+		if matcher.Matches(pattern, plugin) {
+			return pattern.Title, true
+		}
+	}
+	return "", false
 }

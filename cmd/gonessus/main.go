@@ -9,7 +9,6 @@ import (
 	"github.com/alecthomas/kong"
 	"log"
 	"os"
-	"slices"
 )
 
 type CLI struct {
@@ -62,20 +61,5 @@ func main() {
 		return
 	}
 
-	fr := models.FinalReport{
-		Issues: make(map[string]models.Issue),
-	}
-
-	for _, host := range report.Report.ReportHost {
-		for _, ri := range host.ReportItems {
-			f := fr.Issues[ri.PluginName]
-			if !slices.Contains(f.AffectedHosts, host.Name) {
-				f.AffectedHosts = append(f.AffectedHosts, host.Name)
-			}
-			fr.Issues[ri.PluginName] = f
-		}
-	}
-	for _, iss := range fr.Issues {
-		fmt.Println(iss.AffectedHosts)
-	}
+	nessus.IssuesByPluginName(report, patterns, pat)
 }
