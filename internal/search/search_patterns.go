@@ -8,14 +8,14 @@ import (
 	"strings"
 )
 
-type PatternParsingRepository interface {
+type PatternMatchingRepository interface {
 	ParsePattern(raw string) (*models.Pattern, error)
 	Matches(pattern *models.Pattern, text string) bool
 }
 
 type patternRepository struct{}
 
-func NewPatternRepository() PatternParsingRepository {
+func NewPatternRepository() PatternMatchingRepository {
 	return &patternRepository{}
 }
 
