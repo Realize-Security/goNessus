@@ -105,13 +105,6 @@ func main() {
 		log.Fatal("No patterns specified. Use --pattern or --pattern-file to specify search patterns")
 	}
 
-	// Read and parse the Nessus file
-	//fb, err := files.ReadFileToBytes(cli.NessusFiles)
-	//if err != nil {
-	//	fmt.Fprintln(os.Stderr, "error reading nessus file:", err)
-	//	os.Exit(1)
-	//}
-
 	nessus := nessusreport.NewNessusRepository()
 
 	inputFiles := strings.Split(cli.NessusFiles, ",")
