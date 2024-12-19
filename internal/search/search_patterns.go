@@ -21,6 +21,8 @@ func NewPatternRepository() PatternMatchingRepository {
 
 // ParsePattern converts a raw user-defined pattern string into a Pattern struct
 func (p *patternRepository) ParsePattern(raw string) (*models.Pattern, error) {
+	// expression::title::type::options
+	//
 	// Split on double colons to allow single colons in regex
 	parts := strings.Split(raw, "::")
 

@@ -26,7 +26,14 @@ func (c *CLI) Validate(ctx *kong.Context) error {
 
 func main() {
 	var cli CLI
-	_ = kong.Parse(&cli)
+	_ = kong.Parse(&cli,
+		kong.Description(description()),
+		kong.UsageOnError(),
+		kong.ConfigureHelp(kong.HelpOptions{
+			Compact: true,
+			Summary: true,
+		}),
+	)
 
 	pat := search.NewPatternRepository()
 
@@ -62,4 +69,39 @@ func main() {
 	}
 
 	nessus.IssuesByPluginName(report, patterns, pat)
+}
+
+func description() string {
+	return `
+Process and filter Nessus reports.
+
+Pattern format: expression::title::type::options
+
+- expression: The search pattern
+
+- title: Display title (optional)
+
+- type: simple, regex, or glob (optional)
+
+- options: Comma-separated options (optional):
+    - case: Enable case sensitivity. Disabled by default.
+    - inverse: Invert the match
+    - fields=field1+field2: Specify fields to search
+
+Examples:
+  # Simple regex with title
+  gonessus --nessus report.nessus --pattern "CVE-\\d+::CVE Findings::regex"
+
+  # Case-sensitive glob pattern with inverse matching
+  gonessus --nessus report.nessus --pattern "SQL*::SQL Issues::glob::case,inverse"
+
+  # Regular expression searching specific fields
+  gonessus --nessus report.nessus --pattern "(?:High|Critical)::Critical Issues::regex::fields=severity+risk"
+
+  # Multiple patterns
+  gonessus --nessus report.nessus \\
+      --pattern "CVE-\\d+::CVE Findings::regex" \\
+      --pattern "SQL*::SQL Issues::glob" \\
+      --pattern "XSS::Cross-Site Scripting"
+`
 }
