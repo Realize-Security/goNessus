@@ -134,8 +134,21 @@ func main() {
 		fmt.Fprintln(os.Stderr, "error processing report:", err)
 		os.Exit(1)
 	}
-	for key, _ := range fr.Issues {
-		fmt.Println(key)
+	for key, value := range fr.Issues {
+		fmt.Println("----- " + key + " -----")
+		for _, issue := range value {
+			//fmt.Println(issue.Title)
+			for _, host := range issue.AffectedHosts {
+				displayed := make(map[string]bool, len(host.Services))
+				for _, service := range host.Services {
+					ss := fmt.Sprintf("%s:%d/%s/%s", host.Hostname, service.Port, service.Protocol, service.Service)
+					if _, ok := displayed[ss]; !ok {
+						displayed[ss] = true
+						fmt.Println(ss)
+					}
+				}
+			}
+		}
 	}
 }
 
