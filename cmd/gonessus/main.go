@@ -39,6 +39,7 @@ type PatternDetails struct {
 func (c *CLI) Validate(ctx *kong.Context) error {
 	files := strings.Split(c.NessusFiles, ",")
 	for _, file := range files {
+		file = strings.TrimSpace(file) // Handle any spaces after commas
 		if _, err := os.Stat(file); os.IsNotExist(err) {
 			return fmt.Errorf("file %s does not exist", file)
 		}
@@ -112,7 +113,7 @@ func main() {
 	nessus := nessusreport.NewNessusRepository()
 
 	inputFiles := strings.Split(cli.NessusFiles, ",")
-	report, err := nessus.ParseMultipleNessusFiles(inputFiles)
+	report, err := nessus.ParseMultipleNessusFiles(inputFiles...)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error parsing nessus report:", err)
 		os.Exit(1)

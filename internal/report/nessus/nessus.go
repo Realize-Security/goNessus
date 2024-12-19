@@ -14,7 +14,7 @@ import (
 
 type NessusReportRepository interface {
 	Parse(data []byte) (*models.NessusReport, error)
-	ParseMultipleNessusFiles(files []string) (*models.NessusReport, error)
+	ParseMultipleNessusFiles(files ...string) (*models.NessusReport, error)
 	ToCSV(report *models.NessusReport) error
 	IssuesByPluginName(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FinalReport, error)
 }
@@ -114,7 +114,7 @@ func (r *nessusRepository) Parse(xmlData []byte) (*models.NessusReport, error) {
 	return &report, nil
 }
 
-func (r *nessusRepository) ParseMultipleNessusFiles(filePaths []string) (*models.NessusReport, error) {
+func (r *nessusRepository) ParseMultipleNessusFiles(filePaths ...string) (*models.NessusReport, error) {
 	mergedReport := &models.NessusReport{
 		Report: models.Report{
 			ReportHost: make([]models.ReportHost, 0),
