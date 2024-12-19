@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/xml"
 	"fmt"
+	"github.com/Realize-Security/goNessus/internal/files"
 	"github.com/Realize-Security/goNessus/internal/search"
 	"github.com/Realize-Security/goNessus/pkg/models"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 type NessusReportRepository interface {
 	Parse(data []byte) (*models.NessusReport, error)
+	ParseMultipleNessusFiles(files []string) (*models.NessusReport, error)
 	ToCSV(report *models.NessusReport) error
 	IssuesByPluginName(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FinalReport, error)
 }
@@ -110,6 +112,37 @@ func (r *nessusRepository) Parse(xmlData []byte) (*models.NessusReport, error) {
 		return nil, fmt.Errorf("error parsing Nessus report: %w", err)
 	}
 	return &report, nil
+}
+
+func (r *nessusRepository) ParseMultipleNessusFiles(filePaths []string) (*models.NessusReport, error) {
+	mergedReport := &models.NessusReport{
+		Report: models.Report{
+			ReportHost: make([]models.ReportHost, 0),
+		},
+	}
+
+	// Process each file
+	for _, file := range filePaths {
+		// Read file
+		fb, err := files.ReadFileToBytes(file)
+		if err != nil {
+			return nil, fmt.Errorf("error reading file %s: %w", file, err)
+		}
+
+		// Parse individual report
+		report, err := r.Parse(fb)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing file %s: %w", file, err)
+		}
+
+		// Merge hosts from this report into the merged report
+		mergedReport.Report.ReportHost = append(
+			mergedReport.Report.ReportHost,
+			report.Report.ReportHost...,
+		)
+	}
+
+	return mergedReport, nil
 }
 
 // IssuesByPluginName groups issues by Nessus plugin name

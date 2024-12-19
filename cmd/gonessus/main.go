@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/Realize-Security/goNessus/internal/files"
 	nessusreport "github.com/Realize-Security/goNessus/internal/report/nessus"
 	"github.com/Realize-Security/goNessus/internal/search"
 	"github.com/Realize-Security/goNessus/pkg/models"
@@ -10,10 +9,11 @@ import (
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
+	"strings"
 )
 
 type CLI struct {
-	NessusFile  string   `name:"nessus" help:".nessus XML NessusReport" required:"" type:"path"`
+	NessusFiles string   `name:"nessus" help:".nessus XML NessusReport" required:"" type:"path"`
 	Patterns    []string `name:"pattern" help:"Search patterns in format 'expression::title::type::options'. Multiple patterns allowed." type:"strings"`
 	PatternFile string   `name:"pattern-file" help:"YAML file containing patterns" type:"path"`
 	CsvOnly     bool     `name:"csv-only" help:"Output .nessus direct to CSV."`
@@ -37,8 +37,8 @@ type PatternDetails struct {
 }
 
 func (c *CLI) Validate(ctx *kong.Context) error {
-	if _, err := os.Stat(c.NessusFile); os.IsNotExist(err) {
-		return fmt.Errorf("file %s does not exist", c.NessusFile)
+	if _, err := os.Stat(c.NessusFiles); os.IsNotExist(err) {
+		return fmt.Errorf("file %s does not exist", c.NessusFiles)
 	}
 	if c.PatternFile != "" {
 		if _, err := os.Stat(c.PatternFile); os.IsNotExist(err) {
@@ -106,15 +106,16 @@ func main() {
 	}
 
 	// Read and parse the Nessus file
-	fb, err := files.ReadFileToBytes(cli.NessusFile)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error reading nessus file:", err)
-		os.Exit(1)
-	}
+	//fb, err := files.ReadFileToBytes(cli.NessusFiles)
+	//if err != nil {
+	//	fmt.Fprintln(os.Stderr, "error reading nessus file:", err)
+	//	os.Exit(1)
+	//}
 
 	nessus := nessusreport.NewNessusRepository()
 
-	report, err := nessus.Parse(fb)
+	inputFiles := strings.Split(cli.NessusFiles, ",")
+	report, err := nessus.ParseMultipleNessusFiles(inputFiles)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error parsing nessus report:", err)
 		os.Exit(1)
