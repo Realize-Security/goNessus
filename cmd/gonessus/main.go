@@ -177,7 +177,7 @@ YAML file format example:
         type: "regex"
         case_sensitive: false
         inverse: false
-        fields: ["plugin_output", "description"]
+        fields: ["plugin_output", "pluginName", "description"]
 
 Examples:
   # Using command line pattern
