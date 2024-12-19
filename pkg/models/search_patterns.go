@@ -8,12 +8,19 @@ const (
 	GlobMatch   PatternType = "glob"   // Glob pattern match
 )
 
-// Pattern represents a complex search pattern with various matching options
-type Pattern struct {
-	Expression    string      // The actual pattern to match
-	Title         string      // Display title for the results
-	Type          PatternType // Type of pattern matching to use
-	CaseSensitive bool        // Whether to perform case-sensitive matching
-	Inverse       bool        // Invert the match (match things that don't match the pattern)
-	Fields        []string    // Specific fields to search in (empty means search all)
+type PatternConfig struct {
+	Patterns []PatternEntry `yaml:"patterns"`
+}
+
+type PatternEntry struct {
+	Pattern PatternDetails `yaml:"pattern"`
+}
+
+type PatternDetails struct {
+	Expression    string   `yaml:"expression"`
+	Title         string   `yaml:"title"`
+	Type          string   `yaml:"type"`
+	CaseSensitive bool     `yaml:"case_sensitive,omitempty"`
+	Inverse       bool     `yaml:"inverse,omitempty"`
+	Fields        []string `yaml:"fields,omitempty"`
 }

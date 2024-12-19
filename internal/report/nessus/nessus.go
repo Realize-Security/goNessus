@@ -14,7 +14,7 @@ import (
 type NessusReportRepository interface {
 	Parse(data []byte) (*models.NessusReport, error)
 	ToCSV(report *models.NessusReport) error
-	IssuesByPluginName(report *models.NessusReport, patterns []*models.Pattern, matcher search.PatternMatchingRepository) *models.FinalReport
+	IssuesByPluginName(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FinalReport, error)
 }
 
 type nessusRepository struct{}
@@ -113,7 +113,7 @@ func (r *nessusRepository) Parse(xmlData []byte) (*models.NessusReport, error) {
 }
 
 // IssuesByPluginName groups issues by Nessus plugin name
-func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patterns []*models.Pattern, matcher search.PatternMatchingRepository) *models.FinalReport {
+func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FinalReport, error) {
 	// Pre-allocate maps
 	hc := len(report.Report.ReportHost)
 	totalIssues := totalPlugins(report.Report.ReportHost)
@@ -174,9 +174,10 @@ func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patte
 		resultMap[matchGroup] = append(resultMap[matchGroup], *issue)
 	}
 
-	return &models.FinalReport{
+	fr := &models.FinalReport{
 		Issues: resultMap,
 	}
+	return fr, nil
 }
 
 func hostFound(tracked map[string]map[string]bool, hostname, plugin string) (hostFound bool) {
@@ -199,7 +200,7 @@ func totalPlugins(reportHost []models.ReportHost) int {
 	return len(tracked)
 }
 
-func matchesFilter(plugin string, patterns []*models.Pattern, matcher search.PatternMatchingRepository) (string, bool) {
+func matchesFilter(plugin string, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (string, bool) {
 	for _, pattern := range patterns {
 		if matcher.Matches(pattern, plugin) {
 			return pattern.Title, true

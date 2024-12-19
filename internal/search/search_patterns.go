@@ -9,8 +9,8 @@ import (
 )
 
 type PatternMatchingRepository interface {
-	ParsePattern(raw string) (*models.Pattern, error)
-	Matches(pattern *models.Pattern, text string) bool
+	ParsePattern(raw string) (*models.PatternDetails, error)
+	Matches(pattern *models.PatternDetails, text string) bool
 }
 
 type patternRepository struct{}
@@ -19,17 +19,16 @@ func NewPatternRepository() PatternMatchingRepository {
 	return &patternRepository{}
 }
 
-// ParsePattern converts a raw user-defined pattern string into a Pattern struct
-func (p *patternRepository) ParsePattern(raw string) (*models.Pattern, error) {
+// ParsePattern converts a raw user-defined pattern string into a PatternDetails struct
+func (p *patternRepository) ParsePattern(raw string) (*models.PatternDetails, error) {
 	// expression::title::type::options
-	//
 	// Split on double colons to allow single colons in regex
 	parts := strings.Split(raw, "::")
 
-	pattern := &models.Pattern{
+	pattern := &models.PatternDetails{
 		Expression:    parts[0],
-		Type:          models.SimpleMatch, // Default to simple matching
-		CaseSensitive: false,              // Default to case-insensitive
+		Type:          string(models.SimpleMatch), // Default to simple matching
+		CaseSensitive: false,                      // Default to case-insensitive
 	}
 
 	// Parse the different parts
@@ -42,11 +41,11 @@ func (p *patternRepository) ParsePattern(raw string) (*models.Pattern, error) {
 		case 2:
 			switch strings.ToLower(part) {
 			case "regex", "re":
-				pattern.Type = models.RegexMatch
+				pattern.Type = string(models.RegexMatch)
 			case "glob":
-				pattern.Type = models.GlobMatch
+				pattern.Type = string(models.GlobMatch)
 			case "simple":
-				pattern.Type = models.SimpleMatch
+				pattern.Type = string(models.SimpleMatch)
 			default:
 				return nil, fmt.Errorf("invalid pattern type: %s", part)
 			}
@@ -74,10 +73,10 @@ func (p *patternRepository) ParsePattern(raw string) (*models.Pattern, error) {
 }
 
 // Matches checks if the given text matches the pattern according to its rules
-func (p *patternRepository) Matches(pattern *models.Pattern, text string) bool {
+func (p *patternRepository) Matches(pattern *models.PatternDetails, text string) bool {
 	var matches bool
 
-	switch pattern.Type {
+	switch models.PatternType(pattern.Type) {
 	case models.RegexMatch:
 		flags := ""
 		if !pattern.CaseSensitive {
