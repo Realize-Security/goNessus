@@ -3,6 +3,7 @@ package report
 import (
 	"encoding/csv"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"github.com/Realize-Security/goNessus/internal/files"
 	"github.com/Realize-Security/goNessus/internal/search"
@@ -16,7 +17,7 @@ type NessusReportRepository interface {
 	Parse(data []byte) (*models.NessusReport, error)
 	ParseMultipleNessusFiles(files ...string) (*models.NessusReport, error)
 	ToCSV(report *models.NessusReport) error
-	IssuesByPluginName(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FinalReport, error)
+	FilterIssuesByPlugin(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FilteredReport, error)
 }
 
 type nessusRepository struct{}
@@ -145,8 +146,8 @@ func (r *nessusRepository) ParseMultipleNessusFiles(filePaths ...string) (*model
 	return mergedReport, nil
 }
 
-// IssuesByPluginName groups issues by Nessus plugin name
-func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FinalReport, error) {
+// FilterIssuesByPlugin groups issues by Nessus plugin name using []models.PatternDetails to filter in target matches. Returns a models.FilteredReport instance.
+func (r *nessusRepository) FilterIssuesByPlugin(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FilteredReport, error) {
 	// Pre-allocate maps
 	hc := len(report.Report.ReportHost)
 	totalIssues := totalPlugins(report.Report.ReportHost)
@@ -167,6 +168,7 @@ func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patte
 				continue
 			}
 
+			// Record match
 			pluginMatchMap[reportItem.PluginName] = matchTitle
 
 			issue, exists := issueMap[reportItem.PluginName]
@@ -181,6 +183,7 @@ func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patte
 
 			hostEntry, hostExists := hostServiceMap[reportItem.PluginName][host.Name]
 			if !hostExists {
+				// Record new host with service
 				newHost := models.AffectedHost{
 					Hostname: host.Name,
 					Services: []models.AffectedService{{
@@ -192,6 +195,7 @@ func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patte
 				hostServiceMap[reportItem.PluginName][host.Name] = &newHost
 				issue.AffectedHosts = append(issue.AffectedHosts, newHost)
 			} else {
+				// Update existing host with service
 				hostEntry.Services = append(hostEntry.Services, models.AffectedService{
 					Port:     reportItem.Port,
 					Protocol: reportItem.Protocol,
@@ -207,17 +211,13 @@ func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patte
 		resultMap[matchGroup] = append(resultMap[matchGroup], *issue)
 	}
 
-	fr := &models.FinalReport{
-		Issues: resultMap,
+	if len(hostServiceMap) == 0 {
+		return nil, errors.New("no host plugins found")
+	} else {
+		return &models.FilteredReport{
+			Issues: resultMap,
+		}, nil
 	}
-	return fr, nil
-}
-
-func hostFound(tracked map[string]map[string]bool, hostname, plugin string) (hostFound bool) {
-	if tracked[plugin][hostname] {
-		return true
-	}
-	return
 }
 
 func totalPlugins(reportHost []models.ReportHost) int {

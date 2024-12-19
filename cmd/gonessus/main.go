@@ -129,7 +129,7 @@ func main() {
 	}
 
 	// Process report with patterns
-	fr, err := nessus.IssuesByPluginName(report, patterns, pat)
+	fr, err := nessus.FilterIssuesByPlugin(report, patterns, pat)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error processing report:", err)
 		os.Exit(1)
@@ -137,7 +137,6 @@ func main() {
 	for key, _ := range fr.Issues {
 		fmt.Println(key)
 	}
-
 }
 
 func description() string {

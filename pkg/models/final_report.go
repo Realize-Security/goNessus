@@ -1,6 +1,6 @@
 package models
 
-type FinalReport struct {
+type FilteredReport struct {
 	Issues map[string][]Issue `json:"issues"`
 }
 

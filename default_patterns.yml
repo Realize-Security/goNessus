@@ -1,0 +1,66 @@
+patterns:
+    - pattern:
+        expression: "ssl"
+        title: "SSL Issues"
+        type: "regex"
+        fields: ["plugin_output", "description"]
+
+    - pattern:
+        expression: "^Apache [0-9<>\\.\\/\\s]"
+        title: "Apache - Multiple Vulnerabilities"
+        type: "regex"
+        fields: ["pluginName"]
+
+    - pattern:
+        expression: "^PHP [0-9<>\\.\\/\\s]"
+        title: "PHP - Multiple Vulnerabilities"
+        type: "regex"
+        fields: ["pluginName"]
+
+    - pattern:
+        expression: "^Apache Tomcat"
+        title: "Apache Tomcat - Multiple Vulnerabilities"
+        type: "regex"
+        fields: ["pluginName"]
+
+    - pattern:
+        expression: "(unsupported version detection|.*Server SEoL)"
+        title: "Unsupported or End-of-Life Software"
+        type: "regex"
+        fields: ["pluginName"]
+
+    - pattern:
+        expression: "^(SSL|TLS)"
+        title: "SSL and TLS Configuration Issues"
+        type: "regex"
+        fields: ["pluginName"]
+
+    - pattern:
+        expression: "^SNMP"
+        title: "SNMP Issues"
+        type: "regex"
+        fields: ["pluginName"]
+
+    - pattern:
+        expression: "^ICMP"
+        title: "ICMP Issues"
+        type: "regex"
+        fields: ["pluginName"]
+
+    - pattern:
+        expression: "^(DNS Server|mDNS Detection)"
+        title: "DNS Issues"
+        type: "regex"
+        fields: ["pluginName"]
+
+    - pattern:
+        expression: "(telnet|smb|ftp|tftp|snmp|ssh|rdp|remote desktop|Terminal Services|vnc|mysql)"
+        title: "Exposed Management Interfaces"
+        type: "regex"
+        fields: [ "pluginName" ]
+
+    - pattern:
+        expression: "(telnet|ftp|tftp|snmp)"
+        title: "Unencrypted Services"
+        type: "regex"
+        fields: [ "pluginName" ]
