@@ -1,11 +1,10 @@
 package models
 
 type FinalReport struct {
-	Issues []Issue `json:"issues"`
+	Issues map[string][]Issue `json:"issues"`
 }
 
 type Issue struct {
-	FilterMatch   string         `json:"filter_match"`
 	Title         string         `json:"title"`
 	AffectedHosts []AffectedHost `json:"affectedHosts"`
 }

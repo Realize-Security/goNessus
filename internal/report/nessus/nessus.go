@@ -114,63 +114,69 @@ func (r *nessusRepository) Parse(xmlData []byte) (*models.NessusReport, error) {
 
 // IssuesByPluginName groups issues by Nessus plugin name
 func (r *nessusRepository) IssuesByPluginName(report *models.NessusReport, patterns []*models.Pattern, matcher search.PatternMatchingRepository) *models.FinalReport {
-	issueMap := make(map[string]*models.Issue)
-	pluginToHost := make(map[string]map[string]bool)
+	// Pre-allocate maps
 	hc := len(report.Report.ReportHost)
+	totalIssues := totalPlugins(report.Report.ReportHost)
 
+	// Data structures
+	issueMap := make(map[string]*models.Issue, totalIssues)
+	resultMap := make(map[string][]models.Issue, len(patterns))
+	hostServiceMap := make(map[string]map[string]*models.AffectedHost, totalIssues)
+
+	// Track which match group each plugin belongs to
+	pluginMatchMap := make(map[string]string, totalIssues)
+
+	// First pass: collect all issues and their hosts
 	for _, host := range report.Report.ReportHost {
 		for _, reportItem := range host.ReportItems {
-
-			// Filter in target issues only
-			matchTitle, res := matchesFilter(reportItem.PluginName, patterns, matcher)
-			if !res {
+			matchTitle, ok := matchesFilter(reportItem.PluginName, patterns, matcher)
+			if !ok {
 				continue
 			}
+
+			pluginMatchMap[reportItem.PluginName] = matchTitle
+
 			issue, exists := issueMap[reportItem.PluginName]
 			if !exists {
 				issue = &models.Issue{
-					FilterMatch:   matchTitle,
 					Title:         reportItem.PluginName,
 					AffectedHosts: make([]models.AffectedHost, 0, hc),
 				}
 				issueMap[reportItem.PluginName] = issue
-				pluginToHost[reportItem.PluginName] = make(map[string]bool)
+				hostServiceMap[reportItem.PluginName] = make(map[string]*models.AffectedHost)
 			}
 
-			if !hostFound(pluginToHost, host.Name, reportItem.PluginName) {
-				// Add new host with its first service
-				issue.AffectedHosts = append(issue.AffectedHosts, models.AffectedHost{
+			hostEntry, hostExists := hostServiceMap[reportItem.PluginName][host.Name]
+			if !hostExists {
+				newHost := models.AffectedHost{
 					Hostname: host.Name,
 					Services: []models.AffectedService{{
 						Port:     reportItem.Port,
 						Protocol: reportItem.Protocol,
 						Service:  reportItem.ServiceName,
 					}},
-				})
-				pluginToHost[reportItem.PluginName][host.Name] = true
-			} else {
-				// Find the correct host and append the service
-				for i := range issue.AffectedHosts {
-					if issue.AffectedHosts[i].Hostname == host.Name {
-						issue.AffectedHosts[i].Services = append(issue.AffectedHosts[i].Services, models.AffectedService{
-							Port:     reportItem.Port,
-							Protocol: reportItem.Protocol,
-							Service:  reportItem.ServiceName,
-						})
-						break
-					}
 				}
+				hostServiceMap[reportItem.PluginName][host.Name] = &newHost
+				issue.AffectedHosts = append(issue.AffectedHosts, newHost)
+			} else {
+				hostEntry.Services = append(hostEntry.Services, models.AffectedService{
+					Port:     reportItem.Port,
+					Protocol: reportItem.Protocol,
+					Service:  reportItem.ServiceName,
+				})
 			}
 		}
 	}
 
-	fr := &models.FinalReport{
-		Issues: make([]models.Issue, 0, len(issueMap)),
+	// Second pass: build final result map after all hosts are collected
+	for pluginName, issue := range issueMap {
+		matchGroup := pluginMatchMap[pluginName]
+		resultMap[matchGroup] = append(resultMap[matchGroup], *issue)
 	}
-	for _, issue := range issueMap {
-		fr.Issues = append(fr.Issues, *issue)
+
+	return &models.FinalReport{
+		Issues: resultMap,
 	}
-	return fr
 }
 
 func hostFound(tracked map[string]map[string]bool, hostname, plugin string) (hostFound bool) {
