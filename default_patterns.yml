@@ -1,11 +1,5 @@
 patterns:
     - pattern:
-        expression: "ssl"
-        title: "SSL Issues"
-        type: "regex"
-        fields: ["plugin_output", "description"]
-
-    - pattern:
         expression: "^Apache [0-9<>\\.\\/\\s]"
         title: "Apache - Multiple Vulnerabilities"
         type: "regex"

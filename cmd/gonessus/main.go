@@ -17,6 +17,7 @@ type CLI struct {
 	Patterns    []string `name:"pattern" help:"Search patterns in format 'expression::title::type::options'. Multiple patterns allowed." type:"strings"`
 	PatternFile string   `name:"pattern-file" help:"YAML file containing patterns" type:"path"`
 	CsvOnly     bool     `name:"csv-only" help:"Output .nessus direct to CSV."`
+	Output      string   `name:"output" help:"Output folder (defaults to stdout)"`
 }
 
 type PatternConfig struct {
@@ -134,22 +135,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "error processing report:", err)
 		os.Exit(1)
 	}
-	for key, value := range fr.Issues {
-		fmt.Println("----- " + key + " -----")
-		for _, issue := range value {
-			//fmt.Println(issue.Title)
-			for _, host := range issue.AffectedHosts {
-				displayed := make(map[string]bool, len(host.Services))
-				for _, service := range host.Services {
-					ss := fmt.Sprintf("%s:%d/%s/%s", host.Hostname, service.Port, service.Protocol, service.Service)
-					if _, ok := displayed[ss]; !ok {
-						displayed[ss] = true
-						fmt.Println(ss)
-					}
-				}
-			}
-		}
+
+	err = nessus.PrintReport(fr, cli.Output)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error processing report:", err)
 	}
+
 }
 
 func description() string {

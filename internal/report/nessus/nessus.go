@@ -8,7 +8,9 @@ import (
 	"github.com/Realize-Security/goNessus/internal/files"
 	"github.com/Realize-Security/goNessus/internal/search"
 	"github.com/Realize-Security/goNessus/pkg/models"
+	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -18,6 +20,7 @@ type NessusReportRepository interface {
 	ParseMultipleNessusFiles(files ...string) (*models.NessusReport, error)
 	ToCSV(report *models.NessusReport) error
 	FilterIssuesByPlugin(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FilteredReport, error)
+	PrintReport(fr *models.FilteredReport, outfile string) error
 }
 
 type nessusRepository struct{}
@@ -146,6 +149,7 @@ func (r *nessusRepository) ParseMultipleNessusFiles(filePaths ...string) (*model
 	return mergedReport, nil
 }
 
+// FilterIssuesByPlugin TODO: Work on duplicate entries
 // FilterIssuesByPlugin groups issues by Nessus plugin name using []models.PatternDetails to filter in target matches. Returns a models.FilteredReport instance.
 func (r *nessusRepository) FilterIssuesByPlugin(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FilteredReport, error) {
 	// Pre-allocate maps
@@ -218,6 +222,74 @@ func (r *nessusRepository) FilterIssuesByPlugin(report *models.NessusReport, pat
 			Issues: resultMap,
 		}, nil
 	}
+}
+
+func (r *nessusRepository) PrintReport(fr *models.FilteredReport, outfile string) error {
+	if outfile != "" {
+		for key, value := range fr.Issues {
+			// Create a file for each key
+			filename := filepath.Join(outfile, key+".txt")
+
+			// Create directory if it doesn't exist
+			if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+				log.Printf("Error creating directory: %v", err)
+				return err
+			}
+
+			// Create or truncate the file
+			f, err := os.Create(filename)
+			if err != nil {
+				log.Printf("Error creating file %s: %v", filename, err)
+				return err
+			}
+			defer f.Close()
+
+			// Write header
+			fmt.Fprintf(f, "----- %s -----\n", key)
+
+			// Write content
+			for _, issue := range value {
+				for _, host := range issue.AffectedHosts {
+					displayed := make(map[string]bool, len(host.Services))
+					for _, service := range host.Services {
+						ss := fmt.Sprintf("%s:%d/%s/%s",
+							host.Hostname,
+							service.Port,
+							service.Protocol,
+							strings.ReplaceAll(service.Service, "?", ""))
+
+						if _, ok := displayed[ss]; !ok {
+							displayed[ss] = true
+							fmt.Fprintln(f, ss)
+						}
+					}
+				}
+			}
+		}
+	} else {
+		// Original to console
+		for key, value := range fr.Issues {
+			fmt.Println("\n----- " + key + " -----")
+			for _, issue := range value {
+				for _, host := range issue.AffectedHosts {
+					displayed := make(map[string]bool, len(host.Services))
+					for _, service := range host.Services {
+						ss := fmt.Sprintf("%s:%d/%s/%s",
+							host.Hostname,
+							service.Port,
+							service.Protocol,
+							strings.ReplaceAll(service.Service, "?", ""))
+
+						if _, ok := displayed[ss]; !ok {
+							displayed[ss] = true
+							fmt.Println(ss)
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func totalPlugins(reportHost []models.ReportHost) int {
