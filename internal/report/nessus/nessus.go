@@ -226,17 +226,13 @@ func (r *nessusRepository) FilterIssuesByPlugin(report *models.NessusReport, pat
 
 func (r *nessusRepository) PrintReport(fr *models.FilteredReport, outfile string) error {
 	if outfile != "" {
-		for key, value := range fr.Issues {
-			// Create a file for each key
+		for key, issues := range fr.Issues {
 			filename := filepath.Join(outfile, key+".txt")
-
-			// Create directory if it doesn't exist
 			if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 				log.Printf("Error creating directory: %v", err)
 				return err
 			}
 
-			// Create or truncate the file
 			f, err := os.Create(filename)
 			if err != nil {
 				log.Printf("Error creating file %s: %v", filename, err)
@@ -244,13 +240,11 @@ func (r *nessusRepository) PrintReport(fr *models.FilteredReport, outfile string
 			}
 			defer f.Close()
 
-			// Write header
 			fmt.Fprintf(f, "----- %s -----\n", key)
 
-			// Write content
-			for _, issue := range value {
+			displayed := make(map[string]bool)
+			for _, issue := range issues {
 				for _, host := range issue.AffectedHosts {
-					displayed := make(map[string]bool, len(host.Services))
 					for _, service := range host.Services {
 						ss := fmt.Sprintf("%s:%d/%s/%s",
 							host.Hostname,
@@ -267,12 +261,12 @@ func (r *nessusRepository) PrintReport(fr *models.FilteredReport, outfile string
 			}
 		}
 	} else {
-		// Original to console
-		for key, value := range fr.Issues {
+		// Console output
+		for key, issues := range fr.Issues {
 			fmt.Println("\n----- " + key + " -----")
-			for _, issue := range value {
+			displayed := make(map[string]bool)
+			for _, issue := range issues {
 				for _, host := range issue.AffectedHosts {
-					displayed := make(map[string]bool, len(host.Services))
 					for _, service := range host.Services {
 						ss := fmt.Sprintf("%s:%d/%s/%s",
 							host.Hostname,
