@@ -149,7 +149,6 @@ func (r *nessusRepository) ParseMultipleNessusFiles(filePaths ...string) (*model
 	return mergedReport, nil
 }
 
-// FilterIssuesByPlugin TODO: Work on duplicate entries
 // FilterIssuesByPlugin groups issues by Nessus plugin name using []models.PatternDetails to filter in target matches. Returns a models.FilteredReport instance.
 func (r *nessusRepository) FilterIssuesByPlugin(report *models.NessusReport, patterns []*models.PatternDetails, matcher search.PatternMatchingRepository) (*models.FilteredReport, error) {
 	// Pre-allocate maps
