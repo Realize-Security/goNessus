@@ -172,15 +172,15 @@ YAML file format example:
 
 Examples:
   # Using command line pattern
-  kong --nessus=report.nessus --pattern="CVE-\\d+::CVE Findings::regex"
+  goNessus --nessus=report.nessus --pattern="CVE-\\d+::CVE Findings::regex"
 
   # Using multiple .nessus files
-  kong --nessus=report1.nessus,report2.nessus --pattern="CVE-\\d+::CVE Findings::regex"
+  goNessus --nessus=report1.nessus,report2.nessus --pattern="CVE-\\d+::CVE Findings::regex"
 
   # Using pattern file
-  kong --nessus=report.nessus --pattern-file=patterns.yml
+  goNessus --nessus=report.nessus --pattern-file=patterns.yml
 
   # Using both
-  kong --nessus=report.nessus --pattern-file=patterns.yml --pattern="SQL*::SQL Issues::glob"
+  goNessus --nessus=report.nessus --pattern-file=patterns.yml --pattern="SQL*::SQL Issues::glob"
 `
 }
