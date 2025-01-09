@@ -61,6 +61,10 @@ func (c *CLI) Validate(ctx *kong.Context) error {
 		if totalSize > config.NessusMaxTotal {
 			return fmt.Errorf("maximum combined file size exceeded (%d). limit: %d", totalSize, config.NessusMaxTotal)
 		}
+
+		if valid, _ := internalfiles.IsValidXML(file); !valid {
+			return fmt.Errorf("file %s is not valid xml", file)
+		}
 	}
 
 	if c.PatternFile != "" {
