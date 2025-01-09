@@ -4,7 +4,7 @@ import (
 	"fmt"
 	internalfiles "github.com/Realize-Security/goNessus/internal/files"
 	nessusreport "github.com/Realize-Security/goNessus/internal/report/nessus"
-	"github.com/Realize-Security/goNessus/internal/search"
+	"github.com/Realize-Security/goNessus/internal/search/nessus"
 	"github.com/Realize-Security/goNessus/pkg/config"
 	"github.com/Realize-Security/goNessus/pkg/models"
 	"github.com/alecthomas/kong"
@@ -41,29 +41,31 @@ type PatternDetails struct {
 
 func (c *CLI) Validate(ctx *kong.Context) error {
 	var totalSize int64
-	files := strings.Split(c.NessusFiles, ",")
-	for _, file := range files {
-		file = strings.TrimSpace(file)
-		if _, err := os.Stat(file); os.IsNotExist(err) {
-			return fmt.Errorf("file %s does not exist", file)
-		}
+	if len(c.NessusFiles) > 0 {
+		files := strings.Split(c.NessusFiles, ",")
+		for _, file := range files {
+			file = strings.TrimSpace(file)
+			if _, err := os.Stat(file); os.IsNotExist(err) {
+				return fmt.Errorf("file %s does not exist", file)
+			}
 
-		parts := strings.Split(file, ".")
-		if parts[len(parts)-1] != "nessus" {
-			return fmt.Errorf("%s is not a nessus file. does not contain the .nessus extension", file)
-		}
+			parts := strings.Split(file, ".")
+			if parts[len(parts)-1] != "nessus" {
+				return fmt.Errorf("%s is not a nessus file. does not contain the .nessus extension", file)
+			}
 
-		size := internalfiles.SizeInBytes(file)
-		if size > config.NessusFileMaxBytes {
-			return fmt.Errorf("file %s is too large (%d bytes). Max size: %d bytes", file, size, config.NessusFileMaxBytes)
-		}
-		totalSize += size
-		if totalSize > config.NessusMaxTotal {
-			return fmt.Errorf("maximum combined file size exceeded (%d). limit: %d", totalSize, config.NessusMaxTotal)
-		}
+			size := internalfiles.SizeInBytes(file)
+			if size > config.NessusFileMaxBytes {
+				return fmt.Errorf("file %s is too large (%d bytes). Max size: %d bytes", file, size, config.NessusFileMaxBytes)
+			}
+			totalSize += size
+			if totalSize > config.NessusMaxTotal {
+				return fmt.Errorf("maximum combined file size exceeded (%d). limit: %d", totalSize, config.NessusMaxTotal)
+			}
 
-		if valid, _ := internalfiles.IsValidXML(file); !valid {
-			return fmt.Errorf("file %s is not valid xml", file)
+			if valid, _ := internalfiles.IsValidXML(file); !valid {
+				return fmt.Errorf("file %s is not valid xml", file)
+			}
 		}
 	}
 

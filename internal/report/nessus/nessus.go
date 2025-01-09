@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Realize-Security/goNessus/internal/files"
-	"github.com/Realize-Security/goNessus/internal/search"
+	"github.com/Realize-Security/goNessus/internal/search/nessus"
 	"github.com/Realize-Security/goNessus/pkg/models"
 	"log"
 	"os"
