@@ -207,5 +207,8 @@ Examples:
 
   # Using both
   goNessus --nessus=report.nessus --pattern-file=patterns.yml --pattern="SQL*::SQL Issues::glob"
+
+  # Optionally, ignore the 5GB file size limit
+  goNessus --nessus=report.nessus --pattern-file=patterns.yml --pattern-file=patterns.yml --ignore-max-size"
 `
 }
