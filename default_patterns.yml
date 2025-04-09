@@ -58,3 +58,9 @@ patterns:
         title: "Unencrypted Services"
         type: "regex"
         fields: [ "pluginName" ]
+
+    - pattern:
+        expression: "(SSH|ssh).*(CBC|cbc)"
+        title: "SSH Server CBC Mode Ciphers Enabled"
+        type: "regex"
+        fields: [ "pluginName" ]
