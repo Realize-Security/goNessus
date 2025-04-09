@@ -2,24 +2,26 @@ package main
 
 import (
 	"fmt"
-	internalfiles "github.com/Realize-Security/goNessus/internal/files"
-	nessusreport "github.com/Realize-Security/goNessus/internal/report/nessus"
-	"github.com/Realize-Security/goNessus/internal/search"
 	"github.com/Realize-Security/goNessus/pkg/config"
-	"github.com/Realize-Security/goNessus/pkg/models"
-	"github.com/alecthomas/kong"
-	"gopkg.in/yaml.v3"
 	"log"
 	"os"
 	"strings"
+
+	internalfiles "github.com/Realize-Security/goNessus/internal/files"
+	nessusreport "github.com/Realize-Security/goNessus/internal/report/nessus"
+	"github.com/Realize-Security/goNessus/internal/search"
+	"github.com/Realize-Security/goNessus/pkg/models"
+	"github.com/alecthomas/kong"
+	"gopkg.in/yaml.v3"
 )
 
 type CLI struct {
-	NessusFiles string   `name:"nessus" help:".nessus XML NessusReport" required:"" type:"path"`
-	Patterns    []string `name:"pattern" help:"Search patterns in format 'expression::title::type::options'. Multiple patterns allowed." type:"strings"`
-	PatternFile string   `name:"pattern-file" help:"YAML file containing patterns" type:"path"`
-	CsvOnly     bool     `name:"csv-only" help:"Output .nessus direct to CSV."`
-	Output      string   `name:"output" help:"Output folder (defaults to stdout)"`
+	NessusFiles   string   `name:"nessus" help:".nessus XML NessusReport" required:"" type:"path"`
+	Patterns      []string `name:"pattern" help:"Search patterns in format 'expression::title::type::options'. Multiple patterns allowed." type:"strings"`
+	PatternFile   string   `name:"pattern-file" help:"YAML file containing patterns" type:"path"`
+	CsvOnly       bool     `name:"csv-only" help:"Output .nessus direct to CSV."`
+	Output        string   `name:"output" help:"Output folder (defaults to stdout)"`
+	IgnoreMaxSize bool     `name:"ignore-max-size" help:"Ignore max Nessus file size (5GB)"`
 }
 
 type PatternConfig struct {
@@ -53,13 +55,15 @@ func (c *CLI) Validate(ctx *kong.Context) error {
 			return fmt.Errorf("%s is not a nessus file. does not contain the .nessus extension", file)
 		}
 
-		size := internalfiles.SizeInBytes(file)
-		if size > config.NessusFileMaxBytes {
-			return fmt.Errorf("file %s is too large (%d bytes). Max size: %d bytes", file, size, config.NessusFileMaxBytes)
-		}
-		totalSize += size
-		if totalSize > config.NessusMaxTotal {
-			return fmt.Errorf("maximum combined file size exceeded (%d). limit: %d", totalSize, config.NessusMaxTotal)
+		if !c.IgnoreMaxSize {
+			size := internalfiles.SizeInBytes(file)
+			if size > config.NessusFileMaxBytes {
+				return fmt.Errorf("file %s is too large (%d bytes). Max size: %d bytes", file, size, config.NessusFileMaxBytes)
+			}
+			totalSize += size
+			if totalSize > config.NessusMaxTotal {
+				return fmt.Errorf("maximum combined file size exceeded (%d). limit: %d", totalSize, config.NessusMaxTotal)
+			}
 		}
 
 		if valid, _ := internalfiles.IsValidXML(file); !valid {
